@@ -293,8 +293,18 @@
             logBox.scrollTop = logBox.scrollHeight;
         }
 
+        // Bersihkan karakter tak terlihat (LRM/RLM, bidi isolate, word joiner, soft hyphen, BOM, dll) dan
+        // samakan bentuk karakter (mis. tanda kurung full-width "（98）" -> "(98)"), supaya kode dari list
+        // hasil copy-paste (WhatsApp/Excel/web) tetap cocok dengan nama file asli.
+        const INVISIBLE_RE = /[\u00AD\u061C\u180E\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF\uFFF9-\uFFFB]/g;
+        function cleanText(str) {
+            let t = String(str);
+            try { t = t.normalize('NFKC'); } catch (e) {}
+            return t.replace(INVISIBLE_RE, '');
+        }
+
         function getBaseName(filename) {
-            let name = filename.trim().toUpperCase();
+            let name = cleanText(filename).trim().toUpperCase();
             const dotIndex = name.lastIndexOf('.');
             if (dotIndex !== -1) {
                 name = name.substring(0, dotIndex);
@@ -311,7 +321,7 @@
             const lines = rawText.split('\n');
             
             for (let line of lines) {
-                line = line.replace(/[\u200B-\u200D\uFEFF\u00A0]/g, '').trim();
+                line = cleanText(line).replace(/\u00A0/g, ' ').trim();
                 const upperLine = line.toUpperCase();
                 
                 if (!line || 
@@ -484,6 +494,8 @@
                 addLog(`INFO: Ditemukan ${duplicateCount} foto yang ditulis ganda oleh klien. Sistem merangkumnya.`, "warning");
             }
             
+            const hidden = (rawListText.match(INVISIBLE_RE) || []).length;
+            if (hidden > 0) addLog(`Terdeteksi ${hidden} karakter tak terlihat di list (hasil copy-paste) — sudah dibersihkan otomatis.`, "warning");
             addLog(`Memulai proses sortir untuk ${targetList.length} nama unik...`);
             addLog(`Sistem memindai seluruh sub-folder; bila klien memilih dari folder tertentu (mis. Cam 1), file diambil dari folder yang sama.`);
             
